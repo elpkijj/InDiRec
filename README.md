@@ -19,13 +19,13 @@ faiss-gpu==1.7.2
 Five public datasets are included in `datasets` folder. (Beauty, Sports, Toys, Video, ML-1M)
 
 ### Evaluate InDiRec
-Here are the trained models for the Beauty, Sports_and_Games, Toys_and_Games, Video, and ML-1M datasets, stored in the `./output` folder. 
+Here are the trained models for the Beauty, Sports_and_Games, Toys_and_Games, Video, and ML-1M datasets, stored in the `./output` folder. <br>
 You can evaluate these models directly on the test set by running the following command:
 
 ```
 python main.py --data_name <Data_name> --model_idx 1 --eval_only
 ```
-or you can evaluate all the models using the following code:
+or you can evaluate all models using the following code:
 ```
 bash scripts/eval_all.sh
 ```
@@ -35,7 +35,7 @@ To train InDiRec on a specific dataset, you can run the following command:
 ```
 bash scripts/<Data_name>_run.sh
 ```
-or you can train all the models using the following code:
+or you can train all models using the following code:
 ```
 bash scripts/run_all.sh
 ```
