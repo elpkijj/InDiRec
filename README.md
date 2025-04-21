@@ -1,7 +1,7 @@
 # Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation (InDiRec)
-Submission ID: 736
 
-The source code is used for double-blind review in SIGIR 2025.
+
+This is the Pytorch implementation for the paper: [SIGIR'25]Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation. (URL will be applied)
 
 ## Implementation
 ### Requirements
