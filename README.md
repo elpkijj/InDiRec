@@ -1,7 +1,7 @@
 # Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation (InDiRec)
 
 
-This is the Pytorch implementation for the paper: [SIGIR'25]Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation. (URL will be applied)
+This is the Pytorch implementation for the paper: [[SIGIR'25] Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation](https://arxiv.org/pdf/2504.16077).
 
 ## Implementation
 ### Requirements
