@@ -3,7 +3,7 @@
 
 This is the Pytorch implementation for the paper: 
 
-[[SIGIR'25] Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation](https://arxiv.org/pdf/2504.16077).
+[[SIGIR'25] Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation](https://doi.org/10.1145/3726302.3730010).
 
 ## Implementation
 ### Requirements
@@ -50,13 +50,18 @@ This code is implemented based on [ICLRec](https://github.com/salesforce/ICLRec)
 ## Citation
 Please cite our work if it helps your research.
 ```
-@misc{qu2025intentawarediffusioncontrastivelearning,
-      title={Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation}, 
-      author={Yuanpeng Qu and Hajime Nobuhara},
-      year={2025},
-      eprint={2504.16077},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR},
-      url={https://arxiv.org/abs/2504.16077}, 
+@inproceedings{10.1145/3726302.3730010,
+author = {Qu, Yuanpeng and Nobuhara, Hajime},
+title = {Intent-aware Diffusion with Contrastive Learning for Sequential Recommendation},
+year = {2025},
+isbn = {9798400715921},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3726302.3730010},
+doi = {10.1145/3726302.3730010},
+pages = {1552–1561},
+numpages = {10},
+location = {Padua, Italy},
+series = {SIGIR '25}
 }
 ```
