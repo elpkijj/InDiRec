@@ -22,14 +22,14 @@ def gelu(x):
     """
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
 
-
+# swish激活函数
 def swish(x):
     return x * torch.sigmoid(x)
 
 
 ACT2FN = {"gelu": gelu, "relu": F.relu, "swish": swish}
 
-
+# 自定义层归一化，与Transformer原始实现一致
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
         """Construct a layernorm module in the TF style (epsilon inside the square root).
@@ -52,7 +52,8 @@ class Embeddings(nn.Module):
 
     def __init__(self, args):
         super(Embeddings, self).__init__()
-
+        # item_size总共多少物品，hidden_size表示向量维度
+        # 生成初始的随机向量
         self.item_embeddings = nn.Embedding(args.item_size, args.hidden_size, padding_idx=0)  
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
 
@@ -63,7 +64,12 @@ class Embeddings(nn.Module):
 
     def forward(self, input_ids):
         seq_length = input_ids.size(1)
+        # 创建一个从0到seq_length-1的整数序列
         position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+        # unsqueeze 增加批次维度
+        # 原始: [0, 1, 2, 3, 4] (形状: [5])
+        # 增加批次位数：torch.Size([1, 5])   tensor([[0, 1, 2, 3, 4]])
+        # expand_as扩展到整个输入
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         items_embeddings = self.item_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
@@ -92,7 +98,7 @@ class PositionwiseFeedForward(nn.Module):
         return output
 
 
-
+# 多头注意力，每个头关注不同模式（例如语法/语义）
 class MultiHeadAttention(nn.Module):
     def __init__(self, hidden_size, num_units, num_heads, dropout_rate):
         super().__init__()
@@ -225,7 +231,7 @@ class SelfAttention(nn.Module):
 
         return hidden_states
 
-
+# 位置级前馈神经网络
 class Intermediate(nn.Module):
     def __init__(self, args):
         super(Intermediate, self).__init__()
@@ -250,7 +256,7 @@ class Intermediate(nn.Module):
 
         return hidden_states
 
-
+# 完整的Transformer网络
 class Layer(nn.Module):
     def __init__(self, args):
         super(Layer, self).__init__()
@@ -263,6 +269,7 @@ class Layer(nn.Module):
         return intermediate_output
 
 
+# 堆叠多个Transformer网络
 class Encoder(nn.Module):
     def __init__(self, args):
         super(Encoder, self).__init__()
@@ -279,7 +286,7 @@ class Encoder(nn.Module):
             all_encoder_layers.append(hidden_states)
         return all_encoder_layers
 
-
+# 正弦位置编码的实现
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -287,7 +294,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
     def forward(self, time):
         device = time.device
-        half_dim = self.dim // 2
+        half_dim = self.dim // 2 # sin和cos各占一半维度
         embeddings = math.log(10000) / (half_dim - 1)
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]

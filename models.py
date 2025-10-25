@@ -13,10 +13,12 @@ from utils import extract
 class Diffusion():
     def __init__(self, args):
         self.timesteps = args.timesteps
+        # Beta值：控制每个时间步添加的噪声量
         self.beta_start = args.beta_start
         self.beta_end = args.beta_end
         self.args = args
 
+        # beta的调度策略
         if self.args.beta_sche == 'linear':
             self.betas = self.linear_beta_schedule(self.timesteps, self.beta_start, self.beta_end)
         elif self.args.beta_sche == 'exp':
@@ -27,9 +29,13 @@ class Diffusion():
             self.betas = torch.tensor(self.betas_for_alpha_bar(self.timesteps, lambda t: 1-np.sqrt(t + 0.0001),)).float()
 
         # define alphas（timesteps, ）
+        # alphas-保持原有信息的比例
         self.alphas = 1. - self.betas
+        #alphas的类累计乘积
         self.alphas_cumprod = torch.cumprod(self.alphas, axis=0)
+        # 前一个时间步的累计乘积
         self.alphas_cumprod_prev = F.pad(self.alphas_cumprod[:-1], (1, 0), value=1.0)
+        # 用于反向采样步骤
         self.sqrt_recip_alphas = torch.sqrt(1.0 / self.alphas)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
@@ -127,7 +133,7 @@ class InDiRec(nn.Module):
             nn.GELU(),
             nn.Linear(self.hidden_size*2, self.hidden_size)
         )
-            
+    #有条件的扩散
     def forward(self, x, s, step):
         #  x:(batch, dim) , h:(batch, dim), t:(batch, )
         t = self.step_mlp(step) # t:(batch, dim)
@@ -138,7 +144,7 @@ class InDiRec(nn.Module):
         elif self.diffuser_type == 'mlp2':
             res = self.diffuser(torch.cat((x, s, t), dim=1))
         return res # (batch, dim)
-    
+    # 无条件的扩散
     def forward_uncon(self, x, step):
         h = self.none_embedding(torch.tensor([0]).to(self.device))
         h = torch.cat([h.view(1, 64)]*x.shape[0], dim=0)
@@ -151,7 +157,7 @@ class InDiRec(nn.Module):
             res = self.diffuser(torch.cat((x, h, t), dim=1))
             
         return res
-    
+    #将物品ID转换为嵌入向量
     def calculate_x0(self, x0):
         return self.item_embeddings(x0)
 
@@ -169,10 +175,11 @@ class InDiRec(nn.Module):
         s = s * mask + self.none_embedding(torch.tensor([0], device=self.device)) * (1 - mask)
 
         return s
-
+    # 前向过程：加噪
     def forward_process(self, x_start, t, noise=None):
         if noise is None:
             noise = torch.randn_like(x_start)
+        # 根据t取出参数
         sqrt_alphas_cumprod_t = extract(self.diff.sqrt_alphas_cumprod, t, x_start.shape)
         sqrt_one_minus_alphas_cumprod_t = extract(
             self.diff.sqrt_one_minus_alphas_cumprod, t, x_start.shape
@@ -180,8 +187,10 @@ class InDiRec(nn.Module):
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
     
+    # 反向生成与条件s类似的序列
     @torch.no_grad()
     def sample_from_reverse_process(self, s):
+        # 初始化x为标准高斯噪声
         x = torch.randn_like(s)
         for n in reversed(range(0, self.diff.timesteps)):
             t = torch.full((s.shape[0], ), n, device=self.device, dtype=torch.long)
@@ -194,10 +203,12 @@ class InDiRec(nn.Module):
     def p_sample_with_guidance(self, model_forward, model_forward_uncon, x, s, t, t_index):
 
         # guidance, (batch, dim)
+        # classifier-free的设计，有条件和无条件加权
         x_start = (1 + self.w) * model_forward(x, s, t) - self.w * model_forward_uncon(x, t)
         x_t = x
 
         # model_mean = (batch,1) x (batch, dim) + (batch,1) x (batch, dim) = (batch, dim)
+        # 计算高斯分别的均值
         model_mean = (
             extract(self.diff.posterior_mean_coef1, t, x_t.shape) * x_start +
             extract(self.diff.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -275,7 +286,7 @@ class KMeans(object):
         seq2cluster = torch.LongTensor(seq2cluster).to(self.device)
         return seq2cluster, self.centroids[seq2cluster]
 
-
+# 输入的是用户的交互序列，输出是包含物品语义信息，位置信息，上下文信息的嵌入向量
 class SASRecModel(nn.Module):
     def __init__(self, item_embeddings, args):
         super(SASRecModel, self).__init__()

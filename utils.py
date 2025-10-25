@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix
 import torch
 import torch.nn.functional as F
 
-
+# 随机种子设置
 def set_seed(seed):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -19,16 +19,19 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
+# 显示所有配置参数
 def show_args_info(args):
     print(f"=======================Configure Info:=======================")
     for arg in vars(args):
         print(f"{arg:<30} : {getattr(args, arg):>35}")
 
+# 检查路径是否存在，不存在则创建
 def check_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
         print(f"{path} created")
 
+ # 从3D张量中按索引提取特定位置的2D切片
 def extract_axis_1(data, indices):
     res = []
     for i in range(data.shape[0]):
@@ -41,12 +44,15 @@ def extract(a, t, x_shape):
     out = a.gather(-1, t.cpu()) 
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1))).to(t.device) 
 
+# 生成用户物品交互矩阵，有交互则为1
 def generate_rating_matrix_valid(user_seq, num_users, num_items):
     # three lists are used to construct sparse matrix
     row = []
     col = []
     data = []
+    # emumerate分别获得索引和值
     for user_id, item_list in enumerate(user_seq):
+        # 验证集划分：序列-验证标签-测试标签
         for item in item_list[:-2]: 
             row.append(user_id)
             col.append(item)
@@ -55,6 +61,7 @@ def generate_rating_matrix_valid(user_seq, num_users, num_items):
     row = np.array(row)
     col = np.array(col)
     data = np.array(data)
+    # 创建csr稀疏矩阵
     rating_matrix = csr_matrix((data, (row, col)), shape=(num_users, num_items))
 
     return rating_matrix
@@ -65,6 +72,7 @@ def generate_rating_matrix_test(user_seq, num_users, num_items):
     col = []
     data = []
     for user_id, item_list in enumerate(user_seq):
+        # 测试集划分，序列-测试标签
         for item in item_list[:-1]:  
             row.append(user_id)
             col.append(item)
@@ -77,6 +85,12 @@ def generate_rating_matrix_test(user_seq, num_users, num_items):
 
     return rating_matrix
 
+# 生成填充序列张量
+# tensor([
+#     [ 0,  0,  0,  0,  0, 23, 45, 67],  # 序列0
+#     [ 0,  0,  0, 12, 34, 56, 78, 90],  # 序列1
+#     [ 0,  0,  0,  0,  0,  0, 15, 29]   # 序列2
+# ])
 def generate_padded_sequences_tensor(batch_size, padded_seq_len, max_item, input_seq_len):
     sequences = []
     

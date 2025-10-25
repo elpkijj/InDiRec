@@ -124,9 +124,13 @@ class InDiRecTrainer(Trainer):
                 user_id, subsequence, _, _, _ = rec_batch 
                 batch_size = subsequence.size(0)
 
-                sequence_output_a = self.seq_model(subsequence) 
-                sequence_output_b=sequence_output_a[:,-1,:]  
-                kmeans_training_data.append(sequence_output_b.detach().cpu().numpy()) 
+                # 模型输出
+                sequence_output_a = self.seq_model(subsequence)
+                # 取每个序列最后一个有效位置的隐藏状态
+                sequence_output_b=sequence_output_a[:,-1,:]
+                # 收集聚类数据
+                kmeans_training_data.append(sequence_output_b.detach().cpu().numpy())
+                # 保持原始序列数据
                 sequences_list.append(subsequence.detach().cpu().numpy())
 
                 batch_sequence_ids = np.arange(sequence_counter, sequence_counter + batch_size)
