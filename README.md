@@ -8,14 +8,11 @@ This is the Pytorch implementation for the paper:
 ## Implementation
 ### Requirements
 ```
-python>=3.9
-Pytorch >= 1.12.0
-torchvision==0.13.0
-torchaudio==0.12.0
-numpy==1.24.4
-scipy==1.6.0
-pandas==2.2.3
-faiss-gpu==1.7.2
+conda create -n indirec python=3.10 -y
+conda activate indirec
+pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu121 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install numpy==1.24.4 scipy==1.10.1 pandas==2.2.3 faiss-gpu==1.7.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install tqdm seaborn -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 ### Datasets
 Five public datasets are included in `datasets` folder. (Beauty, Sports, Toys, Video, ML-1M)
