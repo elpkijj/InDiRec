@@ -62,9 +62,16 @@ class Trainer:
         raise NotImplementedError
     
     def predict_full(self, seq_out):
+        # 获取所有物品的嵌入向量
         test_item_emb = self.model.item_embeddings.weight
+        # test_item_emb.transpose(0, 1)物品嵌入矩阵转置
         rating_pred = torch.matmul(seq_out, test_item_emb.transpose(0, 1))
         return rating_pred
+        # 结果示例:
+        # rating_pred = [
+        #     [0.8, 0.2, 0.5, ..., 0.1],  # 用户1对1000个物品的预测评分
+        #     [0.3, 0.9, 0.1, ..., 0.7]   # 用户2对1000个物品的预测评分
+        # ]
     
     def get_full_sort_score(self, epoch, answers, pred_list):
         recall, ndcg = [], []
@@ -198,7 +205,7 @@ class InDiRecTrainer(Trainer):
 
                 # 随机采样扩散时间步
                 t = torch.randint(0, self.args.timesteps, (self.args.batch_size, ), device=self.device).long()
-                diff_loss, predicted_x_0 = self.calculate_diff_loss(self.model, x0_gt, s, t)
+                diff_loss,  predicted_x_0 = self.calculate_diff_loss(self.model, x0_gt, s, t)
                 
                 # ablation
                 if self.args.diff_weight == 0:
@@ -213,10 +220,11 @@ class InDiRecTrainer(Trainer):
                 # 提取原始序列特征
                 x0_out = self.seq_model(input_seq) # BxLxD
 
-                # 扩散模型生成序列特征，原始序列特征
+                # 扩散模型生成序列特征，原始序列特征，target pos是下一个物品预测的标签序列
                 cl_loss = self.calculate_cl_loss(x0_hat_out, x0_out[:,-1,:], target_pos[:, -1])
-
-                logits = self.predict_full(x0_out[:, -1, :])  #  Bx|I| 
+                # 利用用户序列最后一个物品预测对所有物品的预测分数
+                logits = self.predict_full(x0_out[:, -1, :])  #  Bx|I|
+                # target_pos[:, -1]是真实的下一个物品
                 rec_loss = nn.CrossEntropyLoss()(logits, target_pos[:, -1])
 
                 multi_task_loss = self.args.rec_weight*rec_loss + self.args.diff_weight*diff_loss + self.args.cl_weight*cl_loss
@@ -282,9 +290,9 @@ class InDiRecTrainer(Trainer):
 
         if noise is None:
             noise = torch.randn_like(x_start) 
-        
+        # 前向加噪
         x_noisy = model.forward_process(x_start=x_start, t=t, noise=noise)
-
+        # 反向去噪，这里自动调用forward函数
         predicted_x = model(x_noisy, s, t)
         
         if loss_type == 'l1':
@@ -300,10 +308,11 @@ class InDiRecTrainer(Trainer):
     
     def calculate_cl_loss(self, x0_hat_rep, x0_rep, target):
         batch_size = x0_rep.shape[0]
+        # x0_hat_rep是重建表示，x0_rep是原始表示，sim相似度计算函数
         sem_nce_logits, sem_nce_labels = self.info_nce(x0_hat_rep,x0_rep,self.args.temperature, batch_size, self.sim, target)
         cl_loss = nn.CrossEntropyLoss()(sem_nce_logits, sem_nce_labels)
         return cl_loss
-
+    # target是intent_id，
     def info_nce(self, z_i, z_j, temp, batch_size, sim='dot',intent_id=None):
 
         N = 2 * batch_size
@@ -312,7 +321,7 @@ class InDiRecTrainer(Trainer):
             sim = F.cosine_similarity(z.unsqueeze(1), z.unsqueeze(0), dim=2) / temp
         elif sim == 'dot':
             sim = torch.mm(z, z.t()) / temp
-
+        # 提取上下对角线的正样本
         sim_i_j = torch.diag(sim, batch_size)
         sim_j_i = torch.diag(sim, -batch_size)
 
@@ -331,5 +340,6 @@ class InDiRecTrainer(Trainer):
         label=label.expand((2,label.shape[-1])).reshape(1,-1)
         label = label.contiguous().view(-1, 1)
         mask = torch.eq(label, label.t())
+        # 返回需要屏蔽的位置
         return mask==0
 

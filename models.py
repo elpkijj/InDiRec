@@ -133,13 +133,15 @@ class InDiRec(nn.Module):
             nn.GELU(),
             nn.Linear(self.hidden_size*2, self.hidden_size)
         )
-    #有条件的扩散
+    #有条件的扩散，输出值是去噪后的结果，这里的x是x-noisy
     def forward(self, x, s, step):
         #  x:(batch, dim) , h:(batch, dim), t:(batch, )
+        # 将离散的时间步转换成向量
         t = self.step_mlp(step) # t:(batch, dim)
 
 
         if self.diffuser_type == 'mlp1':
+            # 连接三个向量，输入给MLP（扩散模型预测）
             res = self.diffuser(torch.cat((x, s, t), dim=1)) # (batch, 3 x dim) -->diffuser-->(batch, dim)
         elif self.diffuser_type == 'mlp2':
             res = self.diffuser(torch.cat((x, s, t), dim=1))
