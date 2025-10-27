@@ -87,18 +87,26 @@ class Trainer:
 
     
     @torch.no_grad()
+    # 获取聚类原型的序列
     def get_sequences_in_same_cluster(self, input_sequence):
         input_sequence = input_sequence.to(self.device)
         batch_size = input_sequence.size(0)
         sequence_output = self.seq_model(input_sequence)
+        # 取每个序列的最后一个位置
         sequence_representation = sequence_output[:, -1, :]  
 
+        # 将tensor转成numpy数组
         sequence_representation_np = sequence_representation.cpu().numpy()
-        cluster = self.clusters_t[0][0]  
+        cluster = self.clusters_t[0][0]
+        # 找到输入序列的聚类原型
         D, I = cluster.index.search(sequence_representation_np, 1)
+        # 为什么是取第一个序列的聚类，input_sequence是一批嘛？是的话这一批是同一个用户的子序列嘛？否则为啥取第一个？
+        # 第一个序列的聚类？感觉有问题
         cluster_idx = int(I[0][0])
+        # 聚类中的所有sequences
         sequence_ids_in_cluster = cluster.cluster2sequences[cluster_idx]
         sequences_in_cluster = [self.sequences_list[seq_id] for seq_id in sequence_ids_in_cluster]
+        # 抽样batch size个随机序列
         random_sequences = random.choices(sequences_in_cluster, k=batch_size)
 
         return random_sequences
@@ -118,10 +126,12 @@ class InDiRecTrainer(Trainer):
             sequence_counter = 0  
 
             rec_t_data_iter = tqdm(enumerate(cluster_dataloader), total=len(cluster_dataloader))
+            # i是当前批次的索引，rec_batch是当前批次的数据
             for i, (rec_batch) in rec_t_data_iter: 
                 
                 rec_batch = tuple(t.to(self.device) for t in rec_batch)
-                user_id, subsequence, _, _, _ = rec_batch 
+                user_id, subsequence, _, _, _ = rec_batch
+                # batch_size是用户子序列的大小
                 batch_size = subsequence.size(0)
 
                 # 模型输出
@@ -146,6 +156,7 @@ class InDiRecTrainer(Trainer):
             sequences_list_t = [sequences_list]
             sequence_ids_t = [sequence_ids]
 
+            # 多个聚类器，ij是索引
             for i, clusters in enumerate(self.clusters_t):
                 for j, cluster in enumerate(clusters):
                     cluster.train(kmeans_training_data_t[i], sequence_ids_t[i])
@@ -175,15 +186,17 @@ class InDiRecTrainer(Trainer):
 
                 rec_batch = tuple(t.to(self.device) for t in rec_batch)
                 _, input_seq, input_seq_len, target_pos, target = rec_batch
-                
+
+                # 获得序列的原型的随机序列
                 same_cl_seqs =  self.get_sequences_in_same_cluster(input_seq)
                 same_cl_seqs = np.array(same_cl_seqs)
                 same_cl_seqs = torch.tensor(same_cl_seqs, dtype=torch.long).to(self.device)
-
+                # 将物品id转成向量
                 x0_gt = self.model.calculate_x0(target) # B x D
-                
+                # 对序列表征随机掩码
                 s = self.model.calculate_s(same_cl_seqs, self.args.p)
 
+                # 随机采样扩散时间步
                 t = torch.randint(0, self.args.timesteps, (self.args.batch_size, ), device=self.device).long()
                 diff_loss, predicted_x_0 = self.calculate_diff_loss(self.model, x0_gt, s, t)
                 
@@ -197,9 +210,10 @@ class InDiRecTrainer(Trainer):
                 else:
                     s_hat = self.seq_model(same_cl_seqs)
                     x0_hat_out = self.model.sample_from_reverse_process(s_hat[:,-1,:]) # BxD
-
+                # 提取原始序列特征
                 x0_out = self.seq_model(input_seq) # BxLxD
 
+                # 扩散模型生成序列特征，原始序列特征
                 cl_loss = self.calculate_cl_loss(x0_hat_out, x0_out[:,-1,:], target_pos[:, -1])
 
                 logits = self.predict_full(x0_out[:, -1, :])  #  Bx|I| 

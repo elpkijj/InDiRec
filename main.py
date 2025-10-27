@@ -147,6 +147,7 @@ if __name__ == '__main__':
     if args.eval_only:
         cluster_dataloader, training_dataloader, eval_dataloader = [],[],[]
         testing_dataset = DatasetForInDiRec(args, user_seq, data_type="test")
+        # 随机打乱数据顺序
         testing_sampler = RandomSampler(testing_dataset)
         testing_dataloader = DataLoader(testing_dataset, sampler=testing_sampler, batch_size=args.batch_size, drop_last=True)
     else:

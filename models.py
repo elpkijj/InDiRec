@@ -230,16 +230,21 @@ class KMeans(object):
         """
         self.seed = seed
         self.num_cluster = num_cluster
+        # 每个质心需要的最多和最少数据点数
         self.max_points_per_centroid = 4096
         self.min_points_per_centroid = 0
         self.gpu_id = 0
         self.device = device
+        # 是否是第一批数据
         self.first_batch = True
         self.hidden_size = hidden_size
         self.clus, self.index = self.__init_cluster(self.hidden_size)
+        # 聚类中心点
         self.centroids = []
         
-        self.seq2cluster = None  
+        # 序列到簇的映射
+        self.seq2cluster = None
+        # 簇到序列的映射
         self.cluster2sequences = defaultdict(list)  
 
 
@@ -247,43 +252,63 @@ class KMeans(object):
         self, hidden_size, verbose=False, niter=20, nredo=5, max_points_per_centroid=4096, min_points_per_centroid=0
     ):
         # print(" cluster train iterations:", niter)
+        # faiss向量检索工具，这里创建一个K means对象
         clus = faiss.Clustering(hidden_size, self.num_cluster)
+        # 是否输出详细日志
         clus.verbose = verbose
+        # 聚类迭代次数
         clus.niter = niter
+        # 随机重启次数（避免局部最优）
         clus.nredo = nredo
         clus.seed = self.seed
         clus.max_points_per_centroid = max_points_per_centroid
         clus.min_points_per_centroid = min_points_per_centroid
 
+        # 创建标准的gpu资源管理器
         res = faiss.StandardGpuResources()
+        # 禁用临时内存
         res.noTempMemory()
+        # 配置gpu索引参数
         cfg = faiss.GpuIndexFlatConfig()
+        # 不适用float16半精度而是使用全精度
         cfg.useFloat16 = False
         cfg.device = self.gpu_id
+        # 返回举例最小的聚类中心
         index = faiss.GpuIndexFlatL2(res, hidden_size, cfg)
+        # 返回聚类器和索引对象
         return clus, index
 
     def train(self, x, sequence_ids):
         # train to get centroids
+        # 只有输入数据点大于聚类数量才会训练
         if x.shape[0] > self.num_cluster:
             self.clus.train(x, self.index)
         # get cluster centroids
+        # 聚类中心->向量转数组->一维数组到二维数组（例如10个簇，每个质心是128维向量）
         centroids = faiss.vector_to_array(self.clus.centroids).reshape(self.num_cluster, self.hidden_size)
         # convert to cuda Tensors for broadcast
         centroids = torch.Tensor(centroids).to(self.device)
+        # 归一化质心向量
         self.centroids = nn.functional.normalize(centroids, p=2, dim=1)
 
+        # 搜索最近的簇，返回距离质心的距离和所属的簇
+        # x是要查询的点，1代表最近邻搜最近的1个
         D, I = self.index.search(x, 1)  # for each sample, find cluster distance and assignments
         seq2cluster = [int(n[0]) for n in I]
+        # 保留序列到簇的映射
         self.seq2cluster = seq2cluster  
 
         for seq_id, cluster_id in zip(sequence_ids, seq2cluster):
             self.cluster2sequences[cluster_id].append(seq_id)
 
     def query(self, x):
+        # 输入x为n_sample*hidden size大小
         D, I = self.index.search(x, 1)  # for each sample, find cluster distance and assignments
+        # 如果 I = [[2], [0], [1], [2], [0]]
+        # 那么 seq2cluster = [2, 0, 1, 2, 0]
         seq2cluster = [int(n[0]) for n in I]
         seq2cluster = torch.LongTensor(seq2cluster).to(self.device)
+        # 返回簇的index和质心向量
         return seq2cluster, self.centroids[seq2cluster]
 
 # 输入的是用户的交互序列，输出是包含物品语义信息，位置信息，上下文信息的嵌入向量
