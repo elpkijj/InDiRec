@@ -51,11 +51,13 @@ def generate_rating_matrix_valid(user_seq, num_users, num_items):
     col = []
     data = []
     # emumerate分别获得索引和值
+    # 一个重要假设：用户序列在列表中的索引位置就作为用户在矩阵中的行索引
     for user_id, item_list in enumerate(user_seq):
-        # 验证集划分：序列-验证标签-测试标签
+        # 验证集划分：序列-验证标签-测试标签，所以这里取倒数第二个之前的
         for item in item_list[:-2]: 
             row.append(user_id)
             col.append(item)
+            # 有交互这个位置就是1
             data.append(1)
 
     row = np.array(row)
