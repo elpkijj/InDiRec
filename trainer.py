@@ -257,23 +257,30 @@ class InDiRecTrainer(Trainer):
             for i, batch in rec_data_iter:
                 batch = tuple(t.to(self.device) for t in batch)
                 user_ids, input_ids,input_seq_len, target_pos, answers = batch
+                # 序列模型的输出，取最后一个位置的隐藏状态作为用户当前兴趣表示
                 rec_output = self.seq_model(input_ids)
                 rec_output = rec_output[:,-1,:]
 
-
+                # predict_full 方法计算用户对所有物品的偏好分数
                 rating_pred = self.predict_full(rec_output)
                 rating_pred = rating_pred.cpu().data.numpy().copy()
+                # 获取用户id
                 batch_user_index = user_ids.cpu().numpy()
-
+                # 屏蔽已交互物品
                 rating_pred[self.args.train_matrix[batch_user_index].toarray() > 0] = 0
-
-                ind = np.argpartition(rating_pred, -20)[:, -20:] 
-                arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind] 
+                # 选择top 20候选物品
+                # np.argpartition，部分排序，只保证前20个在左边，后二十个在右边，不保证左右两边分别有序
+                ind = np.argpartition(rating_pred, -20)[:, -20:]
+                # 提取预测分数
+                arr_ind = rating_pred[np.arange(len(rating_pred))[:, None], ind]
+                # np.argsort完全排序，返回排序后的索引
                 arr_ind_argsort = np.argsort(arr_ind)[np.arange(len(rating_pred)), ::-1] 
                 batch_pred_list = ind[np.arange(len(rating_pred))[:, None], arr_ind_argsort]
 
                 if i == 0:
+                    # 所有用户的推荐列表[用户数量，20]
                     pred_list = batch_pred_list
+                    # 所有用户真实的下一个物品
                     answer_list = answers.cpu().data.numpy()
 
                 else:
